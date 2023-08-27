@@ -3,6 +3,7 @@ from import_pyside6 import *
 class password_widget(QDialog):
     def __init__(self):
         super().__init__()
+        self.setWindowFlags(Qt.WindowStaysOnTopHint)
         self.password_layout = QVBoxLayout()
         self.profile_name = QLabel()
         self.profile_name.setAlignment(Qt.AlignCenter)

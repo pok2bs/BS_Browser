@@ -7,7 +7,7 @@ from gui.password_change_window import password_change_widget
 import sys, json, shutil, time
 
 
-class AppMain (QMainWindow):
+class AppMain (QWidget):
     def __init__(self):
         super().__init__()
         self.ui = MainWindow()
@@ -17,7 +17,15 @@ class AppMain (QMainWindow):
         self.add_profile_widget.accept_button.clicked.connect(self.add_profile)
         self.password_widget.accept_button.clicked.connect(self.set_profile)
         self.password_change_widget.accept_button.clicked.connect(self.password_change)
+
+
         self.profile = []
+        self.setMinimumSize(800, 600)
+        self.setAttribute(Qt.WidgetAttribute.WA_MouseTracking, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_NativeWindow, True)
+        self.window().windowHandle().startSystemMove()
+        self.window().windowHandle().startSystemResize(Qt.Edge())
+
 
         self.ui.setup_ui(self)
         try:
@@ -26,12 +34,11 @@ class AppMain (QMainWindow):
             if len(self.profile_list) > 0:
                 for i in range(0,len(self.profile_list)):
                     self.ui.select_profile.insertItem(i, self.profile_list[i]["name"])
-            print("currect!")
         except:
             self.profile_list = list()
             with open("save.json","w",encoding="utf-8") as save:
                 json.dump(self.profile_list, save, indent="\t")
-
+        
         self.ui.url_edit.returnPressed.connect(self.clicked_event)
         self.ui.back_button.clicked.connect(self.ui.view_widget.back)
         self.ui.forward_button.clicked.connect(self.ui.view_widget.forward)
@@ -47,6 +54,7 @@ class AppMain (QMainWindow):
         self.ui.reload_button.clicked.connect(self.ui.view_widget.reload)
         self.ui.profile_back_button.clicked.connect(self.change_widget)
         self.ui.add_profile.clicked.connect(self.add_profile_widget.show)
+        self.ui.stay_on_top.clicked.connect(self.window_stay_on_top)
         
         self.shortcut = QShortcut(QKeySequence("Ctrl+S"), self)
         self.shortcut.activated.connect(self.save_url)
@@ -60,6 +68,17 @@ class AppMain (QMainWindow):
         self.ui.not_select_profile.clicked.connect(self.no_profile)
         self.ui.profile_change.clicked.connect(self.profile_change)
         self.ui.select_profile.itemClicked.connect(self.profile_select)
+        self.ui.opacity.valueChanged.connect(self.set_opacity)
+
+    def window_stay_on_top(self):
+        if self.ui.stay_on_top.isChecked():
+            self.setWindowFlag(Qt.WindowStaysOnTopHint)
+            self.show()
+        else:
+            self.setWindowFlag(Qt.WindowStaysOnTopHint, False)
+            self.show()
+    def set_opacity(self):
+        self.setWindowOpacity(self.ui.opacity.value()/100)
 
     def change_widget(self):
         self.ui.right_menu.setCurrentWidget(self.ui.setting_frame)
@@ -173,6 +192,7 @@ class AppMain (QMainWindow):
 
     def password_change_show(self):
         self.password_change_widget.show()
+ 
 
     def password_change(self):
         
@@ -202,11 +222,14 @@ class AppMain (QMainWindow):
         if self.isActive:
             self.ui.top_frame.setMaximumHeight(50)
             self.showMaximized()
+            self.setWindowOpacity(self.ui.opacity.value()/100)
+
             self.isActive = False
 
         else:
             self.ui.top_frame.setMaximumHeight(0)
             self.showFullScreen()
+            self.setWindowOpacity(1)
             self.isActive = True
 
     def url_change_event(self):

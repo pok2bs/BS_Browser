@@ -46,7 +46,6 @@ class MainWindow (object):
         self.bookmark_name_change.addWidget(self.bookmark_name_line)
         self.bookmark_name_change.addWidget(self.bookmark_name_button)
 
-
         self.bookmark_layout.addWidget(self.bookmark_Label)
         self.bookmark_layout.addWidget(self.bookmark_widget)
         self.bookmark_layout.addLayout(self.bookmark_name_change)
@@ -76,10 +75,27 @@ class MainWindow (object):
         self.set_profile_layout.addWidget(self.add_profile)
         self.set_profile_layout.addWidget(self.profile_remove)
 
+        self.set_window = QLabel("창 설정") 
+        self.opacity_label = QLabel("투명도(%)")
+        self.opacity = QSpinBox()
+        self.opacity.setMaximum(100)
+        self.opacity.setMinimum(10)
+        self.opacity.setValue(100)
+        self.opacity.setMaximumWidth(100)
+        self.opacity_layout = QHBoxLayout()
+        self.opacity_layout.addWidget(self.opacity_label)
+        self.opacity_layout.addWidget(self.opacity)
+        self.stay_on_top = QCheckBox("창 항상 위에 고정")
+        self.set_window_layout = QVBoxLayout()
+        self.set_window_layout.addLayout(self.opacity_layout)
+        self.set_window_layout.addWidget(self.stay_on_top)
+
         self.setting_layout = QVBoxLayout()
         self.setting_layout.addWidget(self.setting_label)
         self.setting_layout.addLayout(self.bookmark_layout)
         self.setting_layout.addLayout(self.set_profile_layout)
+        self.setting_layout.addWidget(self.set_window)
+        self.setting_layout.addLayout(self.set_window_layout)
         self.setting_layout.setSpacing(10)
         
         self.setting_frame.setLayout(self.setting_layout)
@@ -113,7 +129,7 @@ class MainWindow (object):
         self.bottom_layout.addWidget(self.right_menu)
         self.bottom_layout.setContentsMargins(0,0,0,0)
         self.bottom_layout.setSpacing(0)
-
+        
         self.central_layout = QVBoxLayout()
         self.central_layout.addWidget(self.top_frame)
         self.central_layout.addLayout(self.bottom_layout)
@@ -123,5 +139,4 @@ class MainWindow (object):
 
 
         self.central_widget = QFrame()
-        self.central_widget.setLayout(self.central_layout)
-        parent.setCentralWidget(self.central_widget)
+        parent.setLayout(self.central_layout)
