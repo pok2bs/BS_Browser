@@ -17,10 +17,10 @@ class AppMain (QWidget):
         self.add_profile_widget.accept_button.clicked.connect(self.add_profile)
         self.password_widget.accept_button.clicked.connect(self.set_profile)
         self.password_change_widget.accept_button.clicked.connect(self.password_change)
+        self.setMinimumSize(400, 200)
 
 
         self.profile = []
-        self.setMinimumSize(800, 600)
         self.setAttribute(Qt.WidgetAttribute.WA_MouseTracking, True)
         self.setAttribute(Qt.WidgetAttribute.WA_NativeWindow, True)
         self.window().windowHandle().startSystemMove()
@@ -77,11 +77,12 @@ class AppMain (QWidget):
         else:
             self.setWindowFlag(Qt.WindowStaysOnTopHint, False)
             self.show()
+
     def set_opacity(self):
         self.setWindowOpacity(self.ui.opacity.value()/100)
 
     def change_widget(self):
-        self.ui.right_menu.setCurrentWidget(self.ui.setting_frame)
+        self.ui.right_menu.setCurrentWidget(self.ui.setting_area)
 
     def save(self):
         with open("save.json","w",encoding="utf-8") as save:
@@ -124,7 +125,7 @@ class AppMain (QWidget):
                     self.ui.bookmark_widget.addItem(self.profile_list[self.profile_num]["bookmarks"][i]["name"])
             self.ui.profile_name_line.setText(self.profile_list[self.profile_num]['name'])
 
-            self.ui.right_menu.setCurrentWidget(self.ui.setting_frame)
+            self.ui.right_menu.setCurrentWidget(self.ui.setting_area)
             self.ui.profile_back_button.setMaximumHeight(self.ui.profile_back_max)      
         else:
             self.password_widget.password_error.setText("<p style=\"color:red;\">비밀번호가 틀렸습니다.</p>")
@@ -188,7 +189,7 @@ class AppMain (QWidget):
         page = QWebEnginePage()
         self.ui.view_widget.setPage(page)
         self.ui.view_widget.page().setUrl(QUrl("https://www.google.com"))
-        self.ui.right_menu.setCurrentWidget(self.ui.setting_frame)
+        self.ui.right_menu.setCurrentWidget(self.ui.setting_area)
 
     def password_change_show(self):
         self.password_change_widget.show()
@@ -291,15 +292,9 @@ class AppMain (QWidget):
         self.ui.bookmark_widget.addItem(bookmark["name"])
         self.save()
 
-    def save_load(self):
-        self.ui.bookmark_widget.clear()
-
-        if len(self.profile_list) > 0 and self.ui.right_menu.currentWidget() == self.ui.setting_frame:
-            for i in range(0,len(self.profile_list[self.profile_num]["bookmarks"])):
-                self.ui.bookmark_widget.addItem(self.profile_list[self.profile_num]["bookmarks"][i]["name"])
-        
+    def save_load(self):        
         if self.ui.right_menu.maximumWidth() == 0:
-            self.ui.right_menu.setMaximumWidth(300)
+            self.ui.right_menu.setMaximumWidth(250)
             self.ui.right_menu.setMinimumWidth(200)
         else:
             self.ui.right_menu.setMaximumWidth(0)

@@ -99,7 +99,13 @@ class MainWindow (object):
         self.setting_layout.setSpacing(10)
         
         self.setting_frame.setLayout(self.setting_layout)
-        
+        self.setting_frame.setMaximumWidth(300)
+        self.setting_frame.setMinimumWidth(180)
+        self.setting_area = QScrollArea()
+        self.setting_area.setContentsMargins(0,0,0,0)
+        self.setting_area.setWidget(self.setting_frame)
+        self.setting_area.setWidgetResizable(True)
+    
         #프로필 선택
         self.profile_widget = QWidget()
         self.profile_layout = QVBoxLayout()
@@ -118,7 +124,7 @@ class MainWindow (object):
         
         self.profile_widget.setLayout(self.profile_layout)
 
-        self.right_menu.addWidget(self.setting_frame)
+        self.right_menu.addWidget(self.setting_area)
         self.right_menu.addWidget(self.profile_widget)
         self.right_menu.setCurrentWidget(self.profile_widget)
         
