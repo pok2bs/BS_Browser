@@ -19,15 +19,18 @@ class AppMain (QWidget):
         self.password_change_widget.accept_button.clicked.connect(self.password_change)
         self.setMinimumSize(400, 200)
 
-
         self.profile = []
-        self.setAttribute(Qt.WidgetAttribute.WA_MouseTracking, True)
-        self.setAttribute(Qt.WidgetAttribute.WA_NativeWindow, True)
-        self.window().windowHandle().startSystemMove()
-        self.window().windowHandle().startSystemResize(Qt.Edge())
-
 
         self.ui.setup_ui(self)
+        self.edit_widget = QWidget()
+        self.edit_layout = QVBoxLayout()
+        self.text_widget = QTextEdit()
+        self.text_accept_button = QPushButton("실행")
+        self.edit_layout.addWidget(self.text_widget)
+        self.edit_layout.addWidget(self.text_accept_button)
+        self.edit_widget.setLayout(self.edit_layout)
+        self.edit_widget.setWindowTitle("run javascript")
+
         try:
             with open("save.json","r") as save:
                 self.profile_list = json.load(save)
@@ -46,6 +49,7 @@ class AppMain (QWidget):
         self.ui.view_widget.page().fullScreenRequested.connect(self.fullscreen)
         self.ui.view_widget.page().profile().downloadRequested.connect(self.on_downloadRequested)
         self.ui.view_widget.urlChanged.connect(self.url_change_event)
+        self.ui.view_widget.loadFinished.connect(self.load_finish_event)
         self.ui.bookmarks_clear_button.clicked.connect(self.bookmarks_clear)
         self.ui.bookmark_delete_button.clicked.connect(self.bookmark_delete)
         self.ui.bookmark_name_button.clicked.connect(self.bookmark_name_change)
@@ -55,11 +59,14 @@ class AppMain (QWidget):
         self.ui.profile_back_button.clicked.connect(self.change_widget)
         self.ui.add_profile.clicked.connect(self.add_profile_widget.show)
         self.ui.stay_on_top.clicked.connect(self.window_stay_on_top)
+        self.text_accept_button.clicked.connect(self.run_js)
         
         self.shortcut = QShortcut(QKeySequence("Ctrl+S"), self)
         self.shortcut.activated.connect(self.save_url)
         self.Load_shortcut = QShortcut(QKeySequence("Ctrl+L"), self)
         self.Load_shortcut.activated.connect(self.save_load)
+        self.dev_tool_shortcut = QShortcut(QKeySequence("F12"), self)
+        self.dev_tool_shortcut.activated.connect(self.edit_widget.show)
 
         self.ui.bookmark_widget.itemDoubleClicked.connect(self.link_connect)
         self.ui.bookmark_widget.itemClicked.connect(self.bookmark_edit)
@@ -69,6 +76,11 @@ class AppMain (QWidget):
         self.ui.profile_change.clicked.connect(self.profile_change)
         self.ui.select_profile.itemClicked.connect(self.profile_select)
         self.ui.opacity.valueChanged.connect(self.set_opacity)
+
+    def run_js(self):
+        text = self.text_widget.toPlainText()
+        self.ui.view_widget.page().runJavaScript(text)
+
 
     def window_stay_on_top(self):
         if self.ui.stay_on_top.isChecked():
@@ -88,6 +100,9 @@ class AppMain (QWidget):
         with open("save.json","w",encoding="utf-8") as save:
                 json.dump(self.profile_list, save, indent="\t")
 
+    def callback(self, v: QVariantAnimation):
+        print(v)
+
     def set_profile(self):
         self.passoword = self.password_widget.profile_password_line.text()
 
@@ -98,7 +113,7 @@ class AppMain (QWidget):
                 if self.profile[i]["storagenum"] == self.profile_list[self.profile_num]["storagenum"]:
                     self.page = QWebEnginePage(self.profile[i]["profile"], self.ui.view_widget)
                     is_make_page = True
-                    break
+                    break 
 
             if len(self.profile) == 0 or is_make_page == False:
                 del is_make_page
@@ -112,8 +127,8 @@ class AppMain (QWidget):
             self.page.fullScreenRequested.connect(self.fullscreen)
             self.page.profile().downloadRequested.connect(self.on_downloadRequested)
             self.page.fullScreenRequested.connect(lambda request: request.accept())
-            
-
+            os_info = "Windows NT 10.0; Win64; x64"
+            self.page.profile().setHttpUserAgent(f"Mozilla/5.0 ({os_info}; rv:90.0) Gecko/20100101 Firefox/90.0")
             self.ui.view_widget.setPage(self.page)
             self.ui.view_widget.settings().setAttribute(QWebEngineSettings.FullScreenSupportEnabled, True)
             self.ui.view_widget.setUrl(QUrl("https:/www.google.com"))
@@ -237,6 +252,12 @@ class AppMain (QWidget):
         print(self.ui.view_widget.url().toString())
         self.text = self.ui.view_widget.url().toString()
         self.ui.url_edit.setText(self.text)
+        print(str(self.ui.view_widget.page().title()))
+
+    def load_finish_event(self):
+        self.ui.view_widget.page().runJavaScript("var t = document.getElementsByTagName(\"a\"); for (var i = 0; i < t.length; i++) {var u = t.item(i);  u.removeAttribute(\"target\"); }")
+
+
 
     @Slot("QWebEngineDownloadItem*")
     def on_downloadRequested(self, download):
