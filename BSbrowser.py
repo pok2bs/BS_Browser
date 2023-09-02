@@ -265,13 +265,12 @@ class AppMain (QWidget):
         path, _ = QFileDialog.getSaveFileName(
             self, "Save File", old_path, download.mimeType()
         )
-        type = download.mimeType().split('/')[-1]
         dir = path.split('/')
-        filename = dir[-1] + '.' + type
+        filename = dir[-1] 
 
         if path:
             download.setDownloadFileName(filename)
-            download.setDownloadDirectory(path.strip(filename))
+            download.setDownloadDirectory(self.profile_list[self.profile_num]["download"])
             download.accept()
 
     def keyPressEvent(self, e):
