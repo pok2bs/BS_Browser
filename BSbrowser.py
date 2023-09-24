@@ -21,9 +21,7 @@ class AppMain (QMainWindow):
         self.password_widget.accept_button.clicked.connect(self.set_profile)
         self.password_change_widget.accept_button.clicked.connect(self.password_change)
         self.setMinimumSize(400, 200)
-        self.profile_num = -1
-
-        self.profile = []
+        self.profile_num = None
 
         self.ui.setup_ui(self)
         self.edit_widget = QWidget()
@@ -433,8 +431,9 @@ class main(QObject):
         self.view[-1].show()
         self.view[-1].ui.view_widget.setPage(self.page)
         self.view[-1].profile_num = self.profile_num
-        self.view[-1].password_widget.profile_password_line.setText(self.view[-1].profile_list[self.profile_num]['password']) 
-        self.view[-1].set_profile()
+        if self.profile_num != None:
+            self.view[-1].password_widget.profile_password_line.setText(self.view[-1].profile_list[self.profile_num]['password']) 
+            self.view[-1].set_profile()
         return self.view[-1].ui.view_widget
 
 if __name__ == "__main__":
