@@ -1,5 +1,30 @@
 from import_pyside6 import *
 
+
+class customWebView(QWebEngineView):
+    move_tab = Signal()
+    show_window = Signal()
+    def createWindow(self, type_):
+
+        if type_ == QWebEnginePage.WebBrowserWindow:
+
+            self.show_window.emit()
+            self.window().parent.page = QWebEnginePage(self.window().ui.view_widget.page().profile())
+            self.window().parent.profile_num = self.window().profile_num
+            return self.window().parent.new_window()
+        if type_ == QWebEnginePage.WebBrowserTab:
+
+            self.window().background_view_widget = QWebEngineView()
+            self.window().background_view_widget.urlChanged.connect(self.window().set_tab_url)
+            self.window().match_page = QWebEnginePage(self.window().ui.view_widget.page().profile())
+            self.window().background_view_widget.setPage(self.window().match_page)
+
+            self.move_tab.emit()
+            return self.window().background_view_widget
+        
+        return QWebEngineView.createWindow(self, type_)
+            
+        
 class MainWindow (object):
     def setup_ui(self, parent):
 
@@ -22,10 +47,11 @@ class MainWindow (object):
         self.top_frame.setMaximumHeight(50)
 
         #웹 표시
-        self.view_widget = QWebEngineView()
+        self.stacked_view = QStackedWidget()
+        self.view_widget = customWebView()
         url = QUrl("https://WWW.google.com")
         self.view_widget.setUrl(url)
-
+        self.stacked_view.addWidget(self.view_widget)
 
         self.right_menu = QStackedWidget()
         #각종 설정
@@ -131,13 +157,18 @@ class MainWindow (object):
         self.right_menu.setMaximumWidth(0)
 
         self.bottom_layout = QHBoxLayout()
-        self.bottom_layout.addWidget(self.view_widget)
+        self.bottom_layout.addWidget(self.stacked_view)
         self.bottom_layout.addWidget(self.right_menu)
         self.bottom_layout.setContentsMargins(0,0,0,0)
         self.bottom_layout.setSpacing(0)
         
+        self.load_progress_bar = QProgressBar()
+        self.load_progress_bar.setStyleSheet("max-height: 2px; background-color: green")
+        self.load_progress_bar.setTextVisible(False)
+
         self.central_layout = QVBoxLayout()
         self.central_layout.addWidget(self.top_frame)
+        self.central_layout.addWidget(self.load_progress_bar)
         self.central_layout.addLayout(self.bottom_layout)
         self.central_layout.setContentsMargins(0,0,0,0)
         self.central_layout.setSpacing(0)
@@ -145,4 +176,6 @@ class MainWindow (object):
 
 
         self.central_widget = QFrame()
-        parent.setLayout(self.central_layout)
+        self.central_widget.setLayout(self.central_layout)
+        parent.setCentralWidget(self.central_widget)
+
