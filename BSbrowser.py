@@ -1,8 +1,9 @@
 from import_pyside6 import *
-from gui.main_window import MainWindow, customWebView
-from gui.add_profile_window import add_profile_widget
-from gui.password_window import password_widget
-from gui.password_change_window import password_change_widget
+from gui.main_window import MainWindow
+from gui.web_view import customWebView
+from gui.sub_window.add_profile_window import add_profile_widget
+from gui.sub_window.password_window import password_widget
+from gui.sub_window.password_change_window import password_change_widget
 
 import http.client, requests
 import sys, json, shutil, time, os
