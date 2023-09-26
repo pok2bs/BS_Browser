@@ -151,10 +151,6 @@ class BrowserWindow (QMainWindow):
 
         if self.password == self.profile_list[self.profile_num]['password']:
             self.password_widget.close()
-            
-            if "page" in dir(self):
-                self.page.deleteLater()
-
 
             profile = QWebEngineProfile("storage-{0}".format(self.profile_list[self.profile_num]["storagenum"]), self.ui.view_widget)
 
@@ -170,6 +166,7 @@ class BrowserWindow (QMainWindow):
             
             if self.password_widget.is_new_window_show.isChecked():
                 self.new_profile_window.emit(page.profile())
+                self.profile_num = self.before_num
                 return
             else:
                 self.ui.view_widget.setPage(page)
@@ -212,7 +209,8 @@ class BrowserWindow (QMainWindow):
 
             self.add_profile_widget.show()
         else:         
-
+            if "profile_num" in dir(self):
+                self.before_num = self.profile_num
             self.profile_num = num
             name = self.profile_list[self.profile_num]['name']
             self.password_widget.profile_name.setText(name) 
@@ -408,7 +406,8 @@ class BrowserWindow (QMainWindow):
             
     def bookmark_edit(self):
         self.ui.bookmark_name_line.setText(self.profile_list[self.profile_num]["bookmarks"][self.ui.bookmark_widget.currentRow()]["name"])
-
+        print(self.profile_num)
+    
     def bookmark_name_change(self):
         self.profile_list[self.profile_num]["bookmarks"][self.ui.bookmark_widget.currentRow()]["name"] = self.ui.bookmark_name_line.text()
         self.ui.bookmark_widget.item(self.ui.bookmark_widget.currentRow()).setText(self.ui.bookmark_name_line.text())
@@ -419,7 +418,6 @@ class BrowserWindow (QMainWindow):
         self.ui.stacked_view.addWidget(view)
 
     def closeEvent(self, event):
- 
         event.accept()
 
 class main(QObject):
@@ -432,27 +430,29 @@ class main(QObject):
 
     @Slot(QWebEngineProfile)
     def new_window(self, profile):
-        self.view.append(BrowserWindow(self))
+        view = BrowserWindow(self)
         storage_name = profile.persistentStoragePath().split("/")[-1].lstrip("storage-")
-        self.view[-1].show()
-        self.view[-1].ui.view_widget.setPage(QWebEnginePage(profile, self.view[-1].ui.view_widget))
-        self.view[-1].new_profile_window.connect(self.new_window)
+        view.ui.view_widget.setPage(QWebEnginePage(profile, self.view[-1].ui.view_widget))
+        view.new_profile_window.connect(self.new_window)
 
         
-        if storage_name != "offTheRecord":
-            self.view[-1].profile_num = int(storage_name) - 1
+        if storage_name != "OffTheRecord":
+            view.profile_num = int(storage_name) - 1
             print(storage_name)
 
-        self.view[-1].change_setting_detail()
-        return self.view[-1].ui.view_widget
+            view.change_setting_detail()
+        view.show()
+        self.view.append(view)
+        return view.ui.view_widget
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     Appmain = main()
 
     app.exec()
-    
-if 'delete_path_list' in dir(main):
+
+#고쳐여함 이대로면 실행 안됨
+if 'delete_path_list' in dir(Appmain):
     print('running delete process...')
     time.sleep(1)
     for i in range(0, len(main.delete_path_list)):

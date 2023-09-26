@@ -2,8 +2,30 @@ from import_pyside6 import *
 
 
 class customWebView(QWebEngineView):
-    move_tab = Signal()
-    show_window = Signal(QWebEnginePage)
+    def __init__(self):
+        super().__init__()
+
+
+    def contextMenuEvent(self, event):
+        self.menu = self.createStandardContextMenu()
+            
+        self.menu.actions()[5].deleteLater()
+        self.menu.setStyleSheet("""
+            QMenu{
+                  background-color: rgb(250, 250, 250);
+                  border-radius: 20px;
+            }
+            QMenu::item {
+                    background-color: transparent;
+                    padding:3px 20px;
+                    margin:5px 10px;
+            }
+            QMenu::item:selected { background-color: gray; border-radius: 20px;}
+        """)
+        
+        self.menu.popup(event.globalPos())
+
+
     def createWindow(self, type_):
 
         if type_ == QWebEnginePage.WebBrowserWindow:
@@ -16,11 +38,12 @@ class customWebView(QWebEngineView):
             self.window().match_page = QWebEnginePage(self.window().ui.view_widget.page().profile())
             self.window().background_view_widget.setPage(self.window().match_page)
 
-            self.move_tab.emit()
             return self.window().background_view_widget
         
         return QWebEngineView.createWindow(self, type_)
-            
+    
+
+      
         
 class MainWindow (object):
     def setup_ui(self, parent):
