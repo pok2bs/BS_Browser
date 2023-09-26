@@ -1,17 +1,18 @@
 from import_pyside6 import *
-from gui.main_window import MainWindow
+from gui.main_window import MainWindow, customWebView
 from gui.add_profile_window import add_profile_widget
 from gui.password_window import password_widget
 from gui.password_change_window import password_change_widget
 
 import http.client, requests
-from urllib.request import Request, urlopen
-import sys, json, shutil, time
+import sys, json, shutil, time, os
 
 
-class AppMain (QMainWindow):
+class BrowserWindow (QMainWindow):
+    new_profile_window = Signal(QWebEngineProfile)
     def __init__(self, parent):
         super().__init__()
+        os.environ["QTWEBENGINE_CHROMIUM_FLAGS"]= "--enable-logging --log-level=3"
         self.parent = parent
         self.ui = MainWindow()
         self.add_profile_widget = add_profile_widget()
@@ -53,7 +54,6 @@ class AppMain (QMainWindow):
         self.ui.view_widget.page().fullScreenRequested.connect(self.fullscreen)
         self.ui.view_widget.page().profile().downloadRequested.connect(self.on_downloadRequested)
         self.ui.view_widget.urlChanged.connect(self.update_url_edit)
-        self.ui.view_widget.show_window.connect(self.show_web_window)
         self.ui.view_widget.iconChanged.connect(self.update_icon)
         self.ui.view_widget.titleChanged.connect(self.update_title)
         self.ui.view_widget.loadProgress.connect(self.loading)
@@ -104,11 +104,9 @@ class AppMain (QMainWindow):
         print(":load progress", prog)
         self.ui.load_progress_bar.setValue(prog)
 
-    
-    def show_web_window(self):
-        pass
-
     def set_tab_url(self):
+
+        #gui/main_window/안 customWebView의 createWindow()에 변수 생성 코드가 있음
         self.url = self.background_view_widget.url()
 
         self.background_view_widget.close()
@@ -156,22 +154,35 @@ class AppMain (QMainWindow):
             
             if "page" in dir(self):
                 self.page.deleteLater()
-                self.profile.deleteLater()
 
-            self.profile = QWebEngineProfile("storage-{0}".format(self.profile_list[self.profile_num]["storagenum"]), self.ui.view_widget)
 
-            self.page = QWebEnginePage(self.profile, self.ui.view_widget)
+            profile = QWebEngineProfile("storage-{0}".format(self.profile_list[self.profile_num]["storagenum"]), self.ui.view_widget)
 
-            self.page.fullScreenRequested.connect(self.fullscreen)
-            self.page.profile().downloadRequested.connect(self.on_downloadRequested)
-            self.page.fullScreenRequested.connect(lambda request: request.accept())
+            page = QWebEnginePage(profile, self.ui.view_widget)
+
+            page.fullScreenRequested.connect(self.fullscreen)
+            page.profile().downloadRequested.connect(self.on_downloadRequested)
+            page.fullScreenRequested.connect(lambda request: request.accept())
             os_info = "Windows NT 10.0; Win64; x64"
-            self.page.profile().setHttpUserAgent(f"Mozilla/5.0 ({os_info}; rv:90.0) Gecko/20100101 Firefox/90.0")
+            page.profile().setHttpUserAgent(f"Mozilla/5.0 ({os_info}; rv:90.0) Gecko/20100101 Firefox/90.0")
+            profile.settings().setAttribute(QWebEngineSettings.FullScreenSupportEnabled, True)
             
-            self.ui.view_widget.setPage(self.page)
-            self.ui.view_widget.settings().setAttribute(QWebEngineSettings.FullScreenSupportEnabled, True)
+            
+            if self.password_widget.is_new_window_show.isChecked():
+                self.new_profile_window.emit(page.profile())
+                return
+            else:
+                self.ui.view_widget.setPage(page)
+
+            self.change_setting_detail()
+
+        else:
+            self.password_widget.password_error.setText("<p style=\"color:red;\">비밀번호가 틀렸습니다.</p>")
+            print("비밀번호 아님")
+
+    def change_setting_detail(self):
             self.ui.view_widget.setUrl(QUrl("https:/www.google.com"))
-            
+
             self.ui.bookmark_widget.clear()
             
             if len(self.profile_list) > 0:
@@ -194,9 +205,6 @@ class AppMain (QMainWindow):
 
             self.ui.right_menu.setCurrentWidget(self.ui.setting_area)
             self.ui.profile_back_button.setMaximumHeight(self.ui.profile_back_max)      
-        else:
-            self.password_widget.password_error.setText("<p style=\"color:red;\">비밀번호가 틀렸습니다.</p>")
-            print("비밀번호 아님")
 
     def profile_select(self):
         num = self.ui.select_profile.currentRow()
@@ -411,29 +419,31 @@ class AppMain (QMainWindow):
         self.ui.stacked_view.addWidget(view)
 
     def closeEvent(self, event):
-        self.ui.view_widget.close()
-        self.ui.view_widget.deleteLater()
-        if "profile" in dir(self):
-            self.profile.deleteLater()
-            self.page.deleteLater()
-
+ 
         event.accept()
 
 class main(QObject):
     def __init__(self):
         super().__init__()
         self.view = list()
-        self.view.append(AppMain(self))
+        self.view.append(BrowserWindow(self))
         self.view[0].show()
+        self.view[0].new_profile_window.connect(self.new_window)
 
-    def new_window(self):
-        self.view.append(AppMain(self))
+    @Slot(QWebEngineProfile)
+    def new_window(self, profile):
+        self.view.append(BrowserWindow(self))
+        storage_name = profile.persistentStoragePath().split("/")[-1].lstrip("storage-")
         self.view[-1].show()
-        self.view[-1].ui.view_widget.setPage(self.page)
-        self.view[-1].profile_num = self.profile_num
-        if self.profile_num != None:
-            self.view[-1].password_widget.profile_password_line.setText(self.view[-1].profile_list[self.profile_num]['password']) 
-            self.view[-1].set_profile()
+        self.view[-1].ui.view_widget.setPage(QWebEnginePage(profile, self.view[-1].ui.view_widget))
+        self.view[-1].new_profile_window.connect(self.new_window)
+
+        
+        if storage_name != "offTheRecord":
+            self.view[-1].profile_num = int(storage_name) - 1
+            print(storage_name)
+
+        self.view[-1].change_setting_detail()
         return self.view[-1].ui.view_widget
 
 if __name__ == "__main__":

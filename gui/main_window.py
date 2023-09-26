@@ -3,15 +3,12 @@ from import_pyside6 import *
 
 class customWebView(QWebEngineView):
     move_tab = Signal()
-    show_window = Signal()
+    show_window = Signal(QWebEnginePage)
     def createWindow(self, type_):
 
         if type_ == QWebEnginePage.WebBrowserWindow:
 
-            self.show_window.emit()
-            self.window().parent.page = QWebEnginePage(self.window().ui.view_widget.page().profile())
-            self.window().parent.profile_num = self.window().profile_num
-            return self.window().parent.new_window()
+            return self.window().parent.new_window(profile = self.window().ui.view_widget.page().profile())
         if type_ == QWebEnginePage.WebBrowserTab:
 
             self.window().background_view_widget = QWebEngineView()
