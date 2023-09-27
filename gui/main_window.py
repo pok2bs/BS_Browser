@@ -1,11 +1,6 @@
 from import_pyside6 import *
 from gui.web_view import customWebView
-
-
-    
-
-      
-        
+   
 class MainWindow (object):
     def setup_ui(self, parent):
 

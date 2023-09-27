@@ -1,6 +1,5 @@
 from import_pyside6 import *
 from gui.main_window import MainWindow
-from gui.web_view import customWebView
 from gui.sub_window.add_profile_window import add_profile_widget
 from gui.sub_window.password_window import password_widget
 from gui.sub_window.password_change_window import password_change_widget
@@ -35,20 +34,20 @@ class BrowserWindow (QMainWindow):
         self.edit_widget.setLayout(self.edit_layout)
         self.edit_widget.setWindowTitle("run javascript")
         
-        self.profile_path = self.ui.view_widget.page().profile().persistentStoragePath()
-        delete_path = self.profile_path.split("/")[-1]
-        self.profile_path = self.profile_path.strip(delete_path)
-        print(self.profile_path)
+        self.save_path = self.ui.view_widget.page().profile().persistentStoragePath()
+        delete_path = self.save_path.split("/")[-1]
+        self.save_path = self.save_path.strip(delete_path)
+        print(self.save_path)
 
         try:
-            with open(f"{self.profile_path}save.json","r") as save:
+            with open(f"{self.save_path}save.json","r") as save:
                 self.profile_list = json.load(save)
             if len(self.profile_list) > 0:
                 for i in range(0,len(self.profile_list)):
                     self.ui.select_profile.insertItem(i, self.profile_list[i]["name"])
         except:
             self.profile_list = list()
-            with open(f"{self.profile_path}save.json","w",encoding="utf-8") as save:
+            with open(f"{self.save_path}save.json","w",encoding="utf-8") as save:
                 json.dump(self.profile_list, save, indent="\t")
 
         #웹뷰 설정
@@ -144,7 +143,7 @@ class BrowserWindow (QMainWindow):
         self.ui.right_menu.setCurrentWidget(self.ui.setting_area)
 
     def save(self):
-        with open(f"{self.profile_path}save.json","w",encoding="utf-8") as save:
+        with open(f"{self.save_path}save.json","w",encoding="utf-8") as save:
                 json.dump(self.profile_list, save, indent="\t")
 
     def set_profile(self):
@@ -163,7 +162,7 @@ class BrowserWindow (QMainWindow):
             os_info = "Windows NT 10.0; Win64; x64"
             page.profile().setHttpUserAgent(f"Mozilla/5.0 ({os_info}; rv:90.0) Gecko/20100101 Firefox/90.0")
             profile.settings().setAttribute(QWebEngineSettings.FullScreenSupportEnabled, True)
-            
+            self.profile_path = profile.persistentStoragePath()
             
             if self.password_widget.is_new_window_show.isChecked():
                 self.new_profile_window.emit(page.profile())
@@ -231,7 +230,7 @@ class BrowserWindow (QMainWindow):
         self.delete_path_list = []
         page = QWebEnginePage()
         self.ui.view_widget.setPage(page)
-        self.delete_path_list.append(self.page.profile().persistentStoragePath())
+        self.parent.delete_path_list.append(self.save_path + "storage-{0}".format(self.profile_list[self.profile_num]["storagenum"]))
     
         del self.profile_list[self.profile_num]
 
@@ -419,6 +418,11 @@ class BrowserWindow (QMainWindow):
         self.ui.stacked_view.addWidget(view)
 
     def closeEvent(self, event):
+        self.parent.close_num += 1
+        print(f"closeNum:{self.parent.close_num}")
+        print(f"len:{len(self.parent.view)}")
+        if self.parent.close_num == len(self.parent.view):
+            self.parent.closeEvent()
         event.accept()
 
 class main(QObject):
@@ -428,6 +432,8 @@ class main(QObject):
         self.view.append(BrowserWindow(self))
         self.view[0].show()
         self.view[0].new_profile_window.connect(self.new_window)
+        self.close_num = 0
+        self.delete_path_list = list()
 
     @Slot(QWebEngineProfile)
     def new_window(self, profile):
@@ -444,17 +450,19 @@ class main(QObject):
             view.change_setting_detail()
         view.show()
         self.view.append(view)
+
         return view.ui.view_widget
+    
+    def closeEvent(self):
+        print("close")
+        for view in self.view:
+            view.deleteLater()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     Appmain = main()
 
     app.exec()
-
-#고쳐여함 이대로면 실행 안됨
-if 'delete_path_list' in dir(Appmain):
-    print('running delete process...')
-    time.sleep(1)
-    for i in range(0, len(main.delete_path_list)):
-        shutil.rmtree(main.delete_path_list[i])
+    
+for path in Appmain.delete_path_list:
+    shutil.rmtree(path)
