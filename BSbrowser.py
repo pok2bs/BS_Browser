@@ -165,7 +165,7 @@ class BrowserWindow (QMainWindow):
             
             if self.password_widget.is_new_window_show.isChecked():
                 self.new_profile_window.emit(page.profile())
-                self.profile_num = self.before_num
+                
                 return
             else:
                 self.ui.view_widget.setPage(page)
@@ -445,6 +445,7 @@ class main(QObject):
         for view in self.view:
             if not view.profile_num is None: 
                 view.bookmarks_update()
+                print(f"profile_num:{view.profile_num}")
 
     @Slot(QWebEngineProfile)
     def new_window(self, profile):
@@ -459,6 +460,7 @@ class main(QObject):
             print(storage_name)
             view.show()
             self.view.append(view)
+            self.view[-2].profile_num = self.view[-2].before_num
             self.load()
 
 
