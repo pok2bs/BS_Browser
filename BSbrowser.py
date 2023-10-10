@@ -8,12 +8,18 @@ import http.client, requests
 import sys, json, shutil, time, os
 
 
+
 class BrowserWindow (QMainWindow):
     new_profile_window = Signal(QWebEngineProfile)
+    saved = Signal()
     def __init__(self, parent):
         super().__init__()
         os.environ["QTWEBENGINE_CHROMIUM_FLAGS"]= "--enable-logging --log-level=3"
+        os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--blink-settings=forceDarkModeEnabled=true, darkModeImagePolicy=2 --enable-logging --log-level=3"
+        
         self.parent = parent
+        self.profile_list = self.parent.profile_list
+
         self.ui = MainWindow()
         self.add_profile_widget = add_profile_widget()
         self.password_widget = password_widget() 
@@ -33,22 +39,10 @@ class BrowserWindow (QMainWindow):
         self.edit_layout.addWidget(self.text_accept_button)
         self.edit_widget.setLayout(self.edit_layout)
         self.edit_widget.setWindowTitle("run javascript")
-        
-        self.save_path = self.ui.view_widget.page().profile().persistentStoragePath()
-        delete_path = self.save_path.split("/")[-1]
-        self.save_path = self.save_path.strip(delete_path)
-        print(self.save_path)
 
-        try:
-            with open(f"{self.save_path}save.json","r") as save:
-                self.profile_list = json.load(save)
-            if len(self.profile_list) > 0:
-                for i in range(0,len(self.profile_list)):
-                    self.ui.select_profile.insertItem(i, self.profile_list[i]["name"])
-        except:
-            self.profile_list = list()
-            with open(f"{self.save_path}save.json","w",encoding="utf-8") as save:
-                json.dump(self.profile_list, save, indent="\t")
+        if len(self.profile_list) > 0:
+            for i in range(0,len(self.profile_list)):
+                self.ui.select_profile.insertItem(i, self.profile_list[i]["name"])
 
         #웹뷰 설정
         self.ui.view_widget.page().fullScreenRequested.connect(self.fullscreen)
@@ -84,7 +78,7 @@ class BrowserWindow (QMainWindow):
 
         #단축기 설정
         self.shortcut = QShortcut(QKeySequence("Ctrl+S"), self)
-        self.shortcut.activated.connect(self.save_url)
+        self.shortcut.activated.connect(self.create_bookmark)
         self.Load_shortcut = QShortcut(QKeySequence("Ctrl+L"), self)
         self.Load_shortcut.activated.connect(self.save_load)
         self.dev_tool_shortcut = QShortcut(QKeySequence("F12"), self)
@@ -143,8 +137,10 @@ class BrowserWindow (QMainWindow):
         self.ui.right_menu.setCurrentWidget(self.ui.setting_area)
 
     def save(self):
-        with open(f"{self.save_path}save.json","w",encoding="utf-8") as save:
-                json.dump(self.profile_list, save, indent="\t")
+        
+        with open(f"{self.parent.save_path}save.json","w",encoding="utf-8") as save_:
+                json.dump(self.profile_list, save_, indent="\t")
+        self.saved.emit()
 
     def set_profile(self):
         self.password = self.password_widget.profile_password_line.text()
@@ -156,13 +152,16 @@ class BrowserWindow (QMainWindow):
 
             page = QWebEnginePage(profile, self.ui.view_widget)
 
-            page.fullScreenRequested.connect(self.fullscreen)
-            page.profile().downloadRequested.connect(self.on_downloadRequested)
-            page.fullScreenRequested.connect(lambda request: request.accept())
+            profile.downloadRequested.connect(self.on_downloadRequested)
+
             os_info = "Windows NT 10.0; Win64; x64"
-            page.profile().setHttpUserAgent(f"Mozilla/5.0 ({os_info}; rv:90.0) Gecko/20100101 Firefox/90.0")
+            profile.setHttpUserAgent(f"Mozilla/5.0 ({os_info}; rv:90.0) Gecko/20100101 Firefox/90.0")
             profile.settings().setAttribute(QWebEngineSettings.FullScreenSupportEnabled, True)
             self.profile_path = profile.persistentStoragePath()
+
+            page.fullScreenRequested.connect(self.fullscreen)
+            page.fullScreenRequested.connect(lambda request: request.accept())
+
             
             if self.password_widget.is_new_window_show.isChecked():
                 self.new_profile_window.emit(page.profile())
@@ -171,30 +170,27 @@ class BrowserWindow (QMainWindow):
             else:
                 self.ui.view_widget.setPage(page)
 
-            self.change_setting_detail()
-
+            self.bookmarks_update()
+            self.ui.view_widget.setUrl("https://google.com")
         else:
             self.password_widget.password_error.setText("<p style=\"color:red;\">비밀번호가 틀렸습니다.</p>")
             print("비밀번호 아님")
 
-    def change_setting_detail(self):
-            self.ui.view_widget.setUrl(QUrl("https:/www.google.com"))
-
+    def bookmarks_update(self):
             self.ui.bookmark_widget.clear()
-            
             if len(self.profile_list) > 0:
-                for i in range(0,len(self.profile_list[self.profile_num]["bookmarks"])):
-                    item = QListWidgetItem(self.profile_list[self.profile_num]["bookmarks"][i]["name"])
+                for bookmark in self.profile_list[self.profile_num]["bookmarks"]:
+                    item = QListWidgetItem(bookmark["name"])
                     try:
                         session = requests.Session()
-                        respone = session.get(self.profile_list[self.profile_num]["bookmarks"][i]['icon'], headers={'User-Agent': 'Mozilla/5.0'})
+                        respone = session.get(bookmark['icon'], headers={'User-Agent': 'Mozilla/5.0'})
                         data = respone.content
                         pixmap = QPixmap()
                         pixmap.loadFromData(data)
                         icon = QIcon(pixmap)
                         item.setIcon(icon)
                     except:
-                        print(self.profile_list[self.profile_num]["bookmarks"][i]["icon"])
+                        print(bookmark["icon"])
             
 
                     self.ui.bookmark_widget.addItem(item)
@@ -250,6 +246,7 @@ class BrowserWindow (QMainWindow):
         profile_info["password"] = password
         profile_info["bookmarks"] = bookmarks
         profile_info["storagenum"] = self.ui.select_profile.count()
+        profile_info["isLastProfile"] = False
 
         self.profile_list.append(profile_info)
         self.ui.select_profile.insertItem(self.ui.select_profile.count()-1, name)
@@ -293,8 +290,9 @@ class BrowserWindow (QMainWindow):
         self.input_url = self.ui.url_edit.text()
         url_ok = False
         url = QUrl(self.input_url)
-        print(len(self.input_url.split(".")))
+
         try:
+            #예) https://exemple.com
             if self.input_url.split(":")[0] == "https" or self.input_url.split(":")[0] == "http":
                 url_ok = True
             elif len(self.input_url.split("/")) != 1 or len(self.input_url.split(".")) != 1:
@@ -374,12 +372,13 @@ class BrowserWindow (QMainWindow):
         self.save()
 
     def bookmark_delete(self):
+        if len(self.profile_list[self.profile_num]["bookmarks"]) == 0:
+            return
         num = self.ui.bookmark_widget.currentRow()
-        self.ui.bookmark_widget.takeItem(num)
         del self.profile_list[self.profile_num]["bookmarks"][num]
         self.save()
         
-    def save_url(self):
+    def create_bookmark(self):
         bookmark_list = self.profile_list[self.profile_num]["bookmarks"]
         for i in range(0,len(bookmark_list)):
             if self.text == bookmark_list[i]["name"]:
@@ -390,10 +389,6 @@ class BrowserWindow (QMainWindow):
         bookmark["icon"] = self.ui.view_widget.iconUrl().toString()
         bookmark_list.append(bookmark)
 
-        item = QListWidgetItem(bookmark["name"])
-        item.setIcon(self.ui.view_widget.icon())
-
-        self.ui.bookmark_widget.addItem(item)
         self.save()
 
     def save_load(self):        
@@ -413,15 +408,12 @@ class BrowserWindow (QMainWindow):
         self.ui.bookmark_widget.item(self.ui.bookmark_widget.currentRow()).setText(self.ui.bookmark_name_line.text())
         self.save()
 
-    def add_tab(self):
-        view = QWebEngineView()
-        self.ui.stacked_view.addWidget(view)
-
     def closeEvent(self, event):
+        self.saved.disconnect(self.parent.load)
         self.parent.close_num += 1
-        print(f"closeNum:{self.parent.close_num}")
-        print(f"len:{len(self.parent.view)}")
         if self.parent.close_num == len(self.parent.view):
+            if self.profile_num is not None : self.profile_list[self.profile_num]["isLastProfile"] = True
+            self.save()
             self.parent.closeEvent()
         event.accept()
 
@@ -429,11 +421,30 @@ class main(QObject):
     def __init__(self):
         super().__init__()
         self.view = list()
+        profile = QWebEngineProfile()
+        self.save_path = profile.defaultProfile().persistentStoragePath().rstrip("OffTheRecord")
+        self.load()        
         self.view.append(BrowserWindow(self))
+        self.view[0].saved.connect(self.load)
         self.view[0].show()
         self.view[0].new_profile_window.connect(self.new_window)
+        
         self.close_num = 0
         self.delete_path_list = list()
+
+    def load(self):
+        try:
+            with open(f"{self.save_path}save.json","r") as save:
+                self.profile_list = json.load(save)
+
+        except:
+            self.profile_list = list()
+            with open(f"{self.save_path}save.json","w",encoding="utf-8") as save:
+                json.dump(self.profile_list, save, indent="\t")
+
+        for view in self.view:
+            if not view.profile_num is None: 
+                view.bookmarks_update()
 
     @Slot(QWebEngineProfile)
     def new_window(self, profile):
@@ -441,15 +452,17 @@ class main(QObject):
         storage_name = profile.persistentStoragePath().split("/")[-1].lstrip("storage-")
         view.ui.view_widget.setPage(QWebEnginePage(profile, self.view[-1].ui.view_widget))
         view.new_profile_window.connect(self.new_window)
-
+        view.saved.connect(self.load)
         
         if storage_name != "OffTheRecord":
             view.profile_num = int(storage_name) - 1
             print(storage_name)
+            view.show()
+            self.view.append(view)
+            self.load()
 
-            view.change_setting_detail()
-        view.show()
-        self.view.append(view)
+
+        view.ui.view_widget.setUrl(QUrl("https:/www.google.com"))
 
         return view.ui.view_widget
     
@@ -461,8 +474,7 @@ class main(QObject):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     Appmain = main()
-
     app.exec()
-    
+
 for path in Appmain.delete_path_list:
     shutil.rmtree(path)

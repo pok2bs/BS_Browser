@@ -1,10 +1,10 @@
 from import_pyside6 import *
-from gui.web_view import customWebView
-   
+from gui.web.web_view import customWebView 
+
 class MainWindow (object):
     def setup_ui(self, parent):
 
-
+        
         #위 구성요소
         self.url_edit = QLineEdit()
         self.url_edit.setPlaceholderText('URL을 입력하세요')
