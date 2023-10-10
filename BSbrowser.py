@@ -145,10 +145,10 @@ class BrowserWindow (QMainWindow):
     def set_profile(self):
         self.password = self.password_widget.profile_password_line.text()
 
-        if self.password == self.profile_list[self.profile_num]['password']:
+        if self.password == self.profile_list[self.select_profile_num]['password']:
             self.password_widget.close()
 
-            profile = QWebEngineProfile("storage-{0}".format(self.profile_list[self.profile_num]["storagenum"]), self.ui.view_widget)
+            profile = QWebEngineProfile("storage-{0}".format(self.profile_list[self.select_profile_num]["storagenum"]), self.ui.view_widget)
 
             page = QWebEnginePage(profile, self.ui.view_widget)
 
@@ -165,11 +165,10 @@ class BrowserWindow (QMainWindow):
             
             if self.password_widget.is_new_window_show.isChecked():
                 self.new_profile_window.emit(page.profile())
-                
                 return
             else:
                 self.ui.view_widget.setPage(page)
-
+                self.profile_num = self.select_profile_num
             self.bookmarks_update()
             self.ui.view_widget.setUrl("https://google.com")
         else:
@@ -205,10 +204,8 @@ class BrowserWindow (QMainWindow):
 
             self.add_profile_widget.show()
         else:         
-            if "profile_num" in dir(self):
-                self.before_num = self.profile_num
-            self.profile_num = num
-            name = self.profile_list[self.profile_num]['name']
+            self.select_profile_num = num
+            name = self.profile_list[self.select_profile_num]['name']
             self.password_widget.profile_name.setText(name) 
             self.password_widget.profile_password_line.setText('')
             self.password_widget.password_error.setText("")
@@ -460,7 +457,6 @@ class main(QObject):
             print(storage_name)
             view.show()
             self.view.append(view)
-            self.view[-2].profile_num = self.view[-2].before_num
             self.load()
 
 
