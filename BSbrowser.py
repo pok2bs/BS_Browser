@@ -11,7 +11,7 @@ import sys, json, shutil, time, os
 
 class BrowserWindow (QMainWindow):
     new_profile_window = Signal(QWebEngineProfile)
-    saved = Signal()
+    saved = Signal(int, int)
     def __init__(self, parent):
         super().__init__()
         os.environ["QTWEBENGINE_CHROMIUM_FLAGS"]= "--enable-logging --log-level=3"
@@ -19,6 +19,7 @@ class BrowserWindow (QMainWindow):
         
         self.parent = parent
         self.profile_list = self.parent.profile_list
+        self.del_num = None
 
         self.ui = MainWindow()
         self.add_profile_widget = add_profile_widget()
@@ -58,6 +59,7 @@ class BrowserWindow (QMainWindow):
         self.ui.forward_button.clicked.connect(self.ui.view_widget.forward)
         self.ui.reload_button.clicked.connect(self.ui.view_widget.reload)
         self.ui.url_edit.returnPressed.connect(self.move_to_url)
+        self.ui.setting_button.clicked.connect(self.save_load)
 
         #즐겨찾기 편집 기능 버튼들과 기능들 연결
         self.ui.bookmarks_clear_button.clicked.connect(self.bookmarks_clear)
@@ -76,7 +78,7 @@ class BrowserWindow (QMainWindow):
         
         self.text_accept_button.clicked.connect(self.run_js)
 
-        #단축기 설정
+        #단축키 설정
         self.shortcut = QShortcut(QKeySequence("Ctrl+S"), self)
         self.shortcut.activated.connect(self.create_bookmark)
         self.Load_shortcut = QShortcut(QKeySequence("Ctrl+L"), self)
@@ -136,11 +138,11 @@ class BrowserWindow (QMainWindow):
     def change_widget(self):
         self.ui.right_menu.setCurrentWidget(self.ui.setting_area)
 
-    def save(self):
+    def save(self, del_num = None):
         
         with open(f"{self.parent.save_path}save.json","w",encoding="utf-8") as save_:
                 json.dump(self.profile_list, save_, indent="\t")
-        self.saved.emit()
+        self.saved.emit(self.profile_num, del_num)
 
     def set_profile(self):
         self.password = self.password_widget.profile_password_line.text()
@@ -173,26 +175,38 @@ class BrowserWindow (QMainWindow):
             self.ui.view_widget.setUrl("https://google.com")
         else:
             self.password_widget.password_error.setText("<p style=\"color:red;\">비밀번호가 틀렸습니다.</p>")
-            print("비밀번호 아님")
+    
+    def create_bookmark_item(self, bookmark):
+        print(bookmark["name"])
+        item = QListWidgetItem(bookmark["name"])
+        try:
+            session = requests.Session()
+            respone = session.get(bookmark['icon'], headers={'User-Agent': 'Mozilla/5.0'})
+            data = respone.content
+            pixmap = QPixmap()
+            pixmap.loadFromData(data)
+            icon = QIcon(pixmap)
+            item.setIcon(icon)
+        except:
+            print(bookmark["icon"])
+        return item
 
-    def bookmarks_update(self):
-            self.ui.bookmark_widget.clear()
-            if len(self.profile_list) > 0:
-                for bookmark in self.profile_list[self.profile_num]["bookmarks"]:
-                    item = QListWidgetItem(bookmark["name"])
-                    try:
-                        session = requests.Session()
-                        respone = session.get(bookmark['icon'], headers={'User-Agent': 'Mozilla/5.0'})
-                        data = respone.content
-                        pixmap = QPixmap()
-                        pixmap.loadFromData(data)
-                        icon = QIcon(pixmap)
-                        item.setIcon(icon)
-                    except:
-                        print(bookmark["icon"])
+    def bookmarks_update(self, del_num = None):
+            print(del_num)
+            if del_num == -1:
+                del_num = self.ui.bookmark_widget.count()-1
             
+            if del_num == -2:
+                print(self.profile_list[self.profile_num]["bookmarks"][-1])
+                self.ui.bookmark_widget.addItem(self.create_bookmark_item(self.profile_list[self.profile_num]["bookmarks"][-1]))
+            elif not del_num is None and self.ui.bookmark_widget.count() - len(self.profile_list[self.profile_num]["bookmarks"]) == 1: 
+                self.ui.bookmark_widget.takeItem(del_num)
+            elif len(self.profile_list) > 0:
+                self.ui.bookmark_widget.clear()
+                print("a")
+                for bookmark in self.profile_list[self.profile_num]["bookmarks"]:
+                    self.ui.bookmark_widget.addItem(self.create_bookmark_item(bookmark))
 
-                    self.ui.bookmark_widget.addItem(item)
             self.ui.profile_name_line.setText(self.profile_list[self.profile_num]['name'])
 
             self.ui.right_menu.setCurrentWidget(self.ui.setting_area)
@@ -201,8 +215,8 @@ class BrowserWindow (QMainWindow):
     def profile_select(self):
         num = self.ui.select_profile.currentRow()
         if num == self.ui.select_profile.count()-1:
-
             self.add_profile_widget.show()
+
         else:         
             self.select_profile_num = num
             name = self.profile_list[self.select_profile_num]['name']
@@ -281,7 +295,12 @@ class BrowserWindow (QMainWindow):
 
     def link_connect(self):
         num = self.ui.bookmark_widget.currentRow()
-        self.ui.view_widget.setUrl(QUrl(self.profile_list[self.profile_num]["bookmarks"][num]["url"]))
+
+        url = QUrl(self.profile_list[self.profile_num]["bookmarks"][num]["url"])
+        if self.ui.bookmark_new_window.isChecked():
+            self.parent.new_window(self.ui.view_widget.page().profile()).setUrl(url)
+        else:
+            self.ui.view_widget.setUrl(url)
 
     def move_to_url(self):
         self.input_url = self.ui.url_edit.text()
@@ -301,7 +320,6 @@ class BrowserWindow (QMainWindow):
                     url.setScheme("http")
                     url_ok = True
         except:
-            pass
             print("fail")
 
         if url_ok == True:
@@ -373,7 +391,7 @@ class BrowserWindow (QMainWindow):
             return
         num = self.ui.bookmark_widget.currentRow()
         del self.profile_list[self.profile_num]["bookmarks"][num]
-        self.save()
+        self.save(num)
         
     def create_bookmark(self):
         bookmark_list = self.profile_list[self.profile_num]["bookmarks"]
@@ -386,7 +404,7 @@ class BrowserWindow (QMainWindow):
         bookmark["icon"] = self.ui.view_widget.iconUrl().toString()
         bookmark_list.append(bookmark)
 
-        self.save()
+        self.save(-2)
 
     def save_load(self):        
         if self.ui.right_menu.maximumWidth() == 0:
@@ -398,11 +416,17 @@ class BrowserWindow (QMainWindow):
             
     def bookmark_edit(self):
         self.ui.bookmark_name_line.setText(self.profile_list[self.profile_num]["bookmarks"][self.ui.bookmark_widget.currentRow()]["name"])
+        self.ui.bookmark_url_line.setText(self.profile_list[self.profile_num]["bookmarks"][self.ui.bookmark_widget.currentRow()]["url"])
         print(self.profile_num)
     
     def bookmark_name_change(self):
         self.profile_list[self.profile_num]["bookmarks"][self.ui.bookmark_widget.currentRow()]["name"] = self.ui.bookmark_name_line.text()
         self.ui.bookmark_widget.item(self.ui.bookmark_widget.currentRow()).setText(self.ui.bookmark_name_line.text())
+        self.save()
+
+    def bookmark_url_chagne(self):
+        self.profile_list[self.profile_num]["bookmarks"][self.ui.bookmark_widget.currentRow()]["url"] = self.ui.bookmark_url_line.text()
+        self.ui.bookmark_widget.item(self.ui.bookmark_widget.currentRow()).setText(self.ui.bookmark_url_line.text())
         self.save()
 
     def closeEvent(self, event):
@@ -420,11 +444,8 @@ class main(QObject):
         self.view = list()
         profile = QWebEngineProfile()
         self.save_path = profile.defaultProfile().persistentStoragePath().rstrip("OffTheRecord")
-        self.load()        
-        self.view.append(BrowserWindow(self))
-        self.view[0].saved.connect(self.load)
-        self.view[0].show()
-        self.view[0].new_profile_window.connect(self.new_window)
+        self.update()        
+        self.new_window(profile.defaultProfile())
         
         self.close_num = 0
         self.delete_path_list = list()
@@ -439,31 +460,40 @@ class main(QObject):
             with open(f"{self.save_path}save.json","w",encoding="utf-8") as save:
                 json.dump(self.profile_list, save, indent="\t")
 
+    @Slot(int, int)
+    def update(self, num = None, del_num = None):
+        self.load()
+        
         for view in self.view:
-            if not view.profile_num is None: 
-                view.bookmarks_update()
-                print(f"profile_num:{view.profile_num}")
+            view.profile_list = self.profile_list
+            if not view.profile_num is None and num == view.profile_num: 
+                view.bookmarks_update(del_num)
+                print(f"profile_num:{view.profile_num}, del_num:{del_num}")
 
     @Slot(QWebEngineProfile)
     def new_window(self, profile):
         view = BrowserWindow(self)
         storage_name = profile.persistentStoragePath().split("/")[-1].lstrip("storage-")
-        view.ui.view_widget.setPage(QWebEnginePage(profile, self.view[-1].ui.view_widget))
+        view.ui.view_widget.setPage(QWebEnginePage(profile, view.ui.view_widget))
         view.new_profile_window.connect(self.new_window)
-        view.saved.connect(self.load)
+        view.saved.connect(self.update)
+        
+        self.view.append(view)
         
         if storage_name != "OffTheRecord":
             view.profile_num = int(storage_name) - 1
             print(storage_name)
-            view.show()
-            self.view.append(view)
             self.load()
-
-
+            view.bookmarks_update()
         view.ui.view_widget.setUrl(QUrl("https:/www.google.com"))
+
+        view.show()
 
         return view.ui.view_widget
     
+    @Slot(QWebEngineProfile, QUrl)
+    def new_url_window(self, profile, url):
+        self.new_window(profile).setUrl(url)
     def closeEvent(self):
         print("close")
         for view in self.view:

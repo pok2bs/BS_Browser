@@ -11,11 +11,14 @@ class MainWindow (object):
         self.back_button = QPushButton("뒤")
         self.forward_button = QPushButton("앞")
         self.reload_button = QPushButton("새로고침")
+        self.setting_button = QPushButton("설정")
+
         self.top_layout = QHBoxLayout()
         self.top_layout.addWidget(self.back_button)
         self.top_layout.addWidget(self.forward_button)
         self.top_layout.addWidget(self.reload_button)
         self.top_layout.addWidget(self.url_edit)
+        self.top_layout.addWidget(self.setting_button)
         
 
         self.top_frame = QFrame()
@@ -30,6 +33,7 @@ class MainWindow (object):
         self.stacked_view.addWidget(self.view_widget)
 
         self.right_menu = QStackedWidget()
+
         #각종 설정
         self.setting_frame = QFrame()
         
@@ -38,6 +42,7 @@ class MainWindow (object):
         self.bookmark_layout = QVBoxLayout()
         self.bookmark_Label = QLabel("즐겨찾기")
         self.bookmark_widget = QListWidget()
+        self.bookmark_new_window = QCheckBox("새 창에서 열기")
         self.bookmark_delete_button = QPushButton("삭제")
         self.bookmarks_clear_button = QPushButton("모두 삭제")
 
@@ -45,12 +50,23 @@ class MainWindow (object):
         self.bookmark_name_line = QLineEdit()
         self.bookmark_name_line.setPlaceholderText("즐겨찾기 이름")
         self.bookmark_name_button = QPushButton("이름변경")
+        
         self.bookmark_name_change.addWidget(self.bookmark_name_line)
         self.bookmark_name_change.addWidget(self.bookmark_name_button)
 
+        self.bookmark_url_change = QHBoxLayout()
+        self.bookmark_url_line = QLineEdit()
+        self.bookmark_url_line.setPlaceholderText("URL")
+        self.bookmark_url_button = QPushButton("URL 변경")
+
+        self.bookmark_url_change.addWidget(self.bookmark_url_line)
+        self.bookmark_url_change.addWidget(self.bookmark_url_button)
+
         self.bookmark_layout.addWidget(self.bookmark_Label)
         self.bookmark_layout.addWidget(self.bookmark_widget)
+        self.bookmark_layout.addWidget(self.bookmark_new_window)
         self.bookmark_layout.addLayout(self.bookmark_name_change)
+        self.bookmark_layout.addLayout(self.bookmark_url_change)
         self.bookmark_layout.addWidget(self.bookmark_delete_button)
         self.bookmark_layout.addWidget(self.bookmarks_clear_button)
         
@@ -59,6 +75,7 @@ class MainWindow (object):
         self.set_profile_label = QLabel("프로필")
         self.password_change = QPushButton("비밀번호 변경")
         self.profile_remove = QPushButton("이 프로필 삭제")
+        
         
         self.profile_name_change = QHBoxLayout()
         self.profile_name_line = QLineEdit()
