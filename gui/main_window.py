@@ -76,6 +76,7 @@ class MainWindow (object):
         self.password_change = QPushButton("비밀번호 변경")
         self.profile_remove = QPushButton("이 프로필 삭제")
         
+        self.secret_mod = QCheckBox("비밀모드(쿠키저장 안함)")
         
         self.profile_name_change = QHBoxLayout()
         self.profile_name_line = QLineEdit()
